@@ -19,7 +19,7 @@ dependencyResolutionManagement {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
             credentials {
                 username = "mapbox"
-                password = "MAPBOX_SECRET_TOKEN_REMOVED"
+                password = providers.gradleProperty("MAPBOX_DOWNLOADS_TOKEN").orElse("").get()
             }
             authentication {
                 create<BasicAuthentication>("basic")
