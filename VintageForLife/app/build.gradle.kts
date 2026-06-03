@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -18,7 +17,7 @@ android {
         versionName = "1.0"
 
         // Replace with your Mapbox access token
-        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = "YOUR_MAPBOX_ACCESS_TOKEN"
+        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = "MAPBOX_PUBLIC_REMOVED"
     }
 
     buildFeatures {

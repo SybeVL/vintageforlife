@@ -15,11 +15,21 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url = uri("https://api.mapbox.com/downloads/v2/releases/maven") }
+        maven {
+            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
+            credentials {
+                username = "mapbox"
+                password = "MAPBOX_SECRET_TOKEN_REMOVED"
+            }
+            authentication {
+                create<BasicAuthentication>("basic")
+            }
+        }
     }
 }
 
 rootProject.name = "vintageforlife"
 
 include("plugin")
-include("VintageForLife:app")
+include("app")
+project(":app").projectDir = file("VintageForLife/app")
