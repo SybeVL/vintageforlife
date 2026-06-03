@@ -16,8 +16,8 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Replace with your Mapbox access token
-        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = "MAPBOX_PUBLIC_REMOVED"
+        val mapboxToken = providers.gradleProperty("MAPBOX_ACCESS_TOKEN").orElse("").get()
+        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxToken
     }
 
     buildFeatures {
