@@ -8,24 +8,35 @@ plugins {
 android {
     namespace = "com.vintage4life.routeplanner"
     compileSdk = 34
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
         applicationId = "com.vintage4life.routeplanner"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         val mapboxToken = providers.gradleProperty("MAPBOX_ACCESS_TOKEN").orElse("").get()
-        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxToken
+        if (mapboxToken.isNotEmpty()) {
+            resValue("string", "mapbox_access_token", mapboxToken)
+        }
     }
 
     buildFeatures {
         compose = true
+        resValues = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    androidResources {
+        noCompress += "so"
     }
 }
 
@@ -49,8 +60,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    implementation("com.mapbox.maps:android:11.1.0")
-    implementation("com.mapbox.navigationcore:android:3.1.0")
+    implementation("com.mapbox.maps:android-ndk27:11.7.0")
+    implementation("com.mapbox.extension:maps-compose-ndk27:11.7.0")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
 }
