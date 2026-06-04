@@ -10,9 +10,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mapbox.geojson.Point
-import com.mapbox.maps.extension.compose.MapboxMap
-import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
+import androidx.compose.ui.viewinterop.AndroidView
+import com.mapbox.maps.MapView
+import com.mapbox.maps.Style
 import com.vintage4life.routeplanner.model.Location
 import com.vintage4life.routeplanner.model.OptimizationCriteria
 import com.vintage4life.routeplanner.viewmodel.RoutePlannerViewModel
@@ -132,18 +132,15 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // ── Mapbox kaart ──────────────────────────────────────────────────────
-        MapboxMap(
+        AndroidView(
+            factory = { ctx ->
+                MapView(ctx).apply {
+                    getMapboxMap().loadStyleUri(Style.MAPBOX_STREETS)
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp),
-            mapViewportState = rememberMapViewportState {
-                setCameraOptions {
-                    zoom(10.0)
-                    center(Point.fromLngLat(4.9041, 52.3676))
-                    pitch(0.0)
-                    bearing(0.0)
-                }
-            }
+                .height(220.dp)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
