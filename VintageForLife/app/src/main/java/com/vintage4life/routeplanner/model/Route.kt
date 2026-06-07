@@ -27,9 +27,6 @@ data class Route(
     fun addLocation(location: Location): Route =
         copy(locations = locations + location)
 
-    /**
-     * Retourneert de totale afstand in km.
-     * Conform UML: getTotalDistance(): double
-     */
-    fun getTotalDistance(): Double = totalDistance
 }
+// Kotlin genereert automatisch getTotalDistance() als JVM-getter van [totalDistance].
+// Een expliciete methode zou een JVM-signatuurbotsing veroorzaken.

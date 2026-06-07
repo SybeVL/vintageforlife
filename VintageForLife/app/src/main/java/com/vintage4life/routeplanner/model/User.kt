@@ -12,7 +12,6 @@ abstract class User(
     open val name: String,
     open val email: String,
     protected open val role: Role
-) {
-    /** Retourneert de rol van de gebruiker. Conform UML: getRole(): Role */
-    fun getRole(): Role = role
-}
+)
+// Kotlin genereert automatisch getRole() als JVM-getter van de [role] property.
+// Een expliciete getRole()-methode zou een JVM-signatuurbotsing veroorzaken.
