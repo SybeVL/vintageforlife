@@ -18,6 +18,7 @@ data class Route(
     val locations: List<Location>,
     val totalDistance: Double = 0.0,
     val estimatedTimeMin: Double = 0.0,
+    val totalCO2Grams: Double = 0.0,
     val criteria: OptimizationCriteria = OptimizationCriteria.DISTANCE
 ) {
     /**

@@ -46,12 +46,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
 
-    val viewportState = rememberMapViewportState {
-        setCameraOptions {
-            center(Point.fromLngLat(5.3878, 52.1561)) // Centraal Nederland (Amersfoort)
-            zoom(7.0)
-        }
-    }
+    val viewportState = rememberMapViewportState()
     val scope         = rememberCoroutineScope()
     val geocoder      = remember { Geocoder(context, Locale.getDefault()) }
 
@@ -114,14 +109,15 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         puckBearing        = PuckBearing.COURSE
                         puckBearingEnabled = true
                     }
-                    // Centreer de kaart direct op de gebruiker zodra GPS beschikbaar is,
-                    // zodat de standaard VS-startlocatie nooit zichtbaar is.
-                    viewportState.transitionToFollowPuckState()
-
                     stopsAnnotationManager   = mapView.annotations.createPointAnnotationManager()
                     addressAnnotationManager = mapView.annotations.createPointAnnotationManager()
 
+                    var hasInitiallyCentered = false
                     val newListener = OnIndicatorPositionChangedListener { point ->
+                        if (!hasInitiallyCentered) {
+                            viewportState.transitionToFollowPuckState()
+                            hasInitiallyCentered = true
+                        }
                         if (route == null) {
                             scope.launch {
                                 val address = withContext(Dispatchers.IO) {
@@ -296,7 +292,11 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                 // Routesamenvatting (UML: route.totalDistance)
                 route?.let {
                     Text(
-                        text  = "Route: %.1f km  |  ~%.0f min".format(it.totalDistance, it.estimatedTimeMin),
+                        text  = "Route: %.1f km  |  ~%.0f min  |  %.0f g CO₂".format(
+                            it.totalDistance,
+                            it.estimatedTimeMin,
+                            it.totalCO2Grams
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
