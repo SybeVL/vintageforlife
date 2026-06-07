@@ -5,7 +5,7 @@ import org.json.JSONObject
 import java.net.URL
 
 /**
- * Result data from the Mapbox Directions API.
+ * Resultaat van de Mapbox Directions API voor een route.
  */
 data class MapboxRouteResponse(
     val geometry: List<DoubleArray>,
@@ -14,46 +14,77 @@ data class MapboxRouteResponse(
 )
 
 /**
- * Fetches real road geometry and metrics from the Mapbox Directions REST API.
- *
- * Returns an ordered list of [longitude, latitude] coordinate pairs
- * representing the actual road path between the given stops.
- *
- * All methods are blocking — call from a background thread (e.g. Dispatchers.IO).
+ * Haalt echte wegdata op via de Mapbox Directions REST API.
+ * Blokkerende aanroep — altijd aanroepen vanuit een achtergrondthread.
  */
 class MapboxDirectionsClient(private val accessToken: String) {
 
     /**
-     * Fetches road-snapped geometry and metrics for an ordered list of stops.
-     *
-     * @param stops  At least 2 locations to route through
-     * @return       MapboxRouteResponse containing geometry and metrics
+     * Haalt routegeometrie en metrics op voor een geordende lijst van stops.
+     * Wordt gebruikt om de routelijn op de kaart te tekenen.
      */
     fun fetchRouteData(stops: List<Location>): MapboxRouteResponse? {
         if (stops.size < 2) return null
-
         val coords = stops.joinToString(";") { "${it.longitude},${it.latitude}" }
         val url = "https://api.mapbox.com/directions/v5/mapbox/driving/$coords" +
-                "?geometries=geojson&overview=full&access_token=$accessToken"
+                  "?geometries=geojson&overview=full&access_token=$accessToken"
+        return parseDirectionsResponse(url)
+    }
 
+    /**
+     * Bouwt een N×N [RoadMatrix] door voor elk koppel stops de Directions API aan
+     * te roepen. Gebruikt N×(N-1)/2 calls (gesymmetriseerd).
+     *
+     * Voor 6 stops = 15 calls. Alternatief voor de Mapbox Matrix API.
+     */
+    fun buildRoadMatrix(locations: List<Location>): RoadMatrix? {
+        val n = locations.size
+        val distances = Array(n) { DoubleArray(n) }
+        val durations = Array(n) { DoubleArray(n) }
+
+        for (i in 0 until n) {
+            for (j in i + 1 until n) {
+                val data = fetchPair(locations[i], locations[j]) ?: return null
+                // Symmetriseer: rij i→j ≈ j→i voor rijden
+                distances[i][j] = data.distanceMeters / 1000.0
+                distances[j][i] = data.distanceMeters / 1000.0
+                durations[i][j] = data.durationSeconds
+                durations[j][i] = data.durationSeconds
+            }
+        }
+        return RoadMatrix(durations, distances)
+    }
+
+    /**
+     * Haalt afstand en rijtijd op tussen precies twee locaties.
+     */
+    private fun fetchPair(from: Location, to: Location): MapboxRouteResponse? {
+        val url = "https://api.mapbox.com/directions/v5/mapbox/driving/" +
+                  "${from.longitude},${from.latitude};" +
+                  "${to.longitude},${to.latitude}" +
+                  "?geometries=geojson&overview=false&access_token=$accessToken"
+        return parseDirectionsResponse(url)
+    }
+
+    private fun parseDirectionsResponse(url: String): MapboxRouteResponse? {
         return try {
-            val response = URL(url).readText()
-            val json    = JSONObject(response)
-            val routes  = json.getJSONArray("routes")
+            val json   = JSONObject(URL(url).readText())
+            val routes = json.getJSONArray("routes")
             if (routes.length() == 0) return null
 
-            val firstRoute = routes.getJSONObject(0)
-            val distance = firstRoute.getDouble("distance")
-            val duration = firstRoute.getDouble("duration")
+            val first    = routes.getJSONObject(0)
+            val distance = first.getDouble("distance")
+            val duration = first.getDouble("duration")
 
-            val coordinates = firstRoute
-                .getJSONObject("geometry")
-                .getJSONArray("coordinates")
+            val coordsJson = first.optJSONObject("geometry")
+                ?.optJSONArray("coordinates")
 
-            val geometry = (0 until coordinates.length()).map { i ->
-                val pair = coordinates.getJSONArray(i)
-                doubleArrayOf(pair.getDouble(0), pair.getDouble(1))
-            }
+            val geometry = if (coordsJson != null) {
+                (0 until coordsJson.length()).map { i ->
+                    val pair = coordsJson.getJSONArray(i)
+                    doubleArrayOf(pair.getDouble(0), pair.getDouble(1))
+                }
+            } else emptyList()
 
             MapboxRouteResponse(geometry, distance, duration)
         } catch (e: Exception) {
