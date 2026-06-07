@@ -4,25 +4,15 @@ import com.vintage4life.routeplanner.model.Location
 import org.json.JSONObject
 import java.net.URL
 
-/**
- * Resultaat van de Mapbox Directions API voor een route.
- */
+// uses mapbox api for routing
 data class MapboxRouteResponse(
     val geometry: List<DoubleArray>,
     val distanceMeters: Double,
     val durationSeconds: Double
 )
 
-/**
- * Haalt echte wegdata op via de Mapbox Directions REST API.
- * Blokkerende aanroep — altijd aanroepen vanuit een achtergrondthread.
- */
+// uses real road data to calculate routes
 class MapboxDirectionsClient(private val accessToken: String) {
-
-    /**
-     * Haalt routegeometrie en metrics op voor een geordende lijst van stops.
-     * Wordt gebruikt om de routelijn op de kaart te tekenen.
-     */
     fun fetchRouteData(stops: List<Location>): MapboxRouteResponse? {
         if (stops.size < 2) return null
         val coords = stops.joinToString(";") { "${it.longitude},${it.latitude}" }
@@ -30,13 +20,6 @@ class MapboxDirectionsClient(private val accessToken: String) {
                   "?geometries=geojson&overview=full&access_token=$accessToken"
         return parseDirectionsResponse(url)
     }
-
-    /**
-     * Bouwt een N×N [RoadMatrix] door voor elk koppel stops de Directions API aan
-     * te roepen. Gebruikt N×(N-1)/2 calls (gesymmetriseerd).
-     *
-     * Voor 6 stops = 15 calls. Alternatief voor de Mapbox Matrix API.
-     */
     fun buildRoadMatrix(locations: List<Location>): RoadMatrix? {
         val n = locations.size
         val distances = Array(n) { DoubleArray(n) }
@@ -55,9 +38,7 @@ class MapboxDirectionsClient(private val accessToken: String) {
         return RoadMatrix(durations, distances)
     }
 
-    /**
-     * Haalt afstand en rijtijd op tussen precies twee locaties.
-     */
+    // calculates distance between two locations
     private fun fetchPair(from: Location, to: Location): MapboxRouteResponse? {
         // overview=false en geen geometries: we hebben alleen afstand en tijd nodig
         val url = "https://api.mapbox.com/directions/v5/mapbox/driving/" +

@@ -3,10 +3,7 @@ package com.vintage4life.routeplanner.distance
 import com.vintage4life.routeplanner.model.Location
 import kotlin.math.*
 
-/**
- * Calculates the great-circle distance between two GPS coordinates
- * using the Haversine formula. Returns distance in kilometres.
- */
+// using haversine math formula. calculates distance using earth radius
 class HaversineCalculator : DistanceCalculator {
 
     private val earthRadiusKm = 6371.0

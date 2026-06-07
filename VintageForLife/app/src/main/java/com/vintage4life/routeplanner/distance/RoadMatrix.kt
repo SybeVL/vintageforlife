@@ -1,11 +1,6 @@
 package com.vintage4life.routeplanner.distance
 
-/**
- * N×N matrix met echte wegdata van de Mapbox Matrix API.
- *
- * @param durationsSeconds  [i][j] = rijtijd in seconden van stop i naar stop j
- * @param distancesKm       [i][j] = wegafstand in km van stop i naar stop j
- */
+// similar to DistanceMatrix but this one uses road data to fill the n x n grid
 data class RoadMatrix(
     val durationsSeconds: Array<DoubleArray>,
     val distancesKm: Array<DoubleArray>
