@@ -235,10 +235,11 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         Text("Add stop")
                 }
 
-                // Stoplijst (UML: stops: List<Location>)
-                if (stops.isNotEmpty()) {
+                // Stoplijst: Toont de geoptimaliseerde route indien beschikbaar, anders de invoerlijst.
+                val displayStops = route?.locations ?: stops
+                if (displayStops.isNotEmpty()) {
                     LazyColumn(Modifier.heightIn(max = 110.dp)) {
-                        itemsIndexed(stops) { index, stop ->
+                        itemsIndexed(displayStops) { index, stop ->
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
