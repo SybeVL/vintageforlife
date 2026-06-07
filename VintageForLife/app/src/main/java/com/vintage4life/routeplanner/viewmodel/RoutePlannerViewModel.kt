@@ -137,14 +137,38 @@ class RoutePlannerViewModel(
 
         viewModelScope.launch {
             try {
-                val (solvedRoute, geometry) = withContext(Dispatchers.IO) {
+                val (solvedRoute, routeData) = withContext(Dispatchers.IO) {
                     val r = service.planRoute(currentStops, criteria)
-                    val g = client.fetchRouteGeometry(r.locations)
-                    r to g
+                    val data = client.fetchRouteData(r.locations)
+                    r to data
                 }
-                _route.value        = solvedRoute
-                _routeGeometry.value = geometry
-                _stops.value        = solvedRoute.locations
+
+                if (routeData != null) {
+                    // Update the route with real road metrics from Mapbox
+                    val roadDistanceKm = routeData.distanceMeters / 1000.0
+                    
+                    // CO2 calculation should be consistent with the logic in CO2Calculator
+                    // Use a weighted average if possible, or just the high-level non-linear logic
+                    val co2Grams = when {
+                        roadDistanceKm < 2.0  -> roadDistanceKm * 250.0
+                        roadDistanceKm < 8.0  -> roadDistanceKm * 150.0
+                        else                  -> roadDistanceKm * 90.0
+                    }
+
+                    val finalRoute = solvedRoute.copy(
+                        totalDistance = roadDistanceKm,
+                        estimatedTimeMin = routeData.durationSeconds / 60.0,
+                        totalCO2Grams = co2Grams
+                    )
+                    _route.value = finalRoute
+                    _routeGeometry.value = routeData.geometry
+                    _stops.value = finalRoute.locations
+                } else {
+                    // Fallback if API fails — keep algorithm approximations
+                    _route.value = solvedRoute
+                    _routeGeometry.value = emptyList()
+                    _stops.value = solvedRoute.locations
+                }
             } catch (e: Exception) {
                 _error.value = "Fout bij routeberekening: ${e.message}"
             } finally {

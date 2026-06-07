@@ -1,10 +1,11 @@
 package com.vintage4life.routeplanner.service
 
-import android.util.Log
 import com.vintage4life.routeplanner.algorithm.TSPAlgorithm
 import com.vintage4life.routeplanner.algorithm.TwoOptAlgorithm
+import com.vintage4life.routeplanner.distance.CO2Calculator
 import com.vintage4life.routeplanner.distance.DistanceCalculator
 import com.vintage4life.routeplanner.distance.HaversineCalculator
+import com.vintage4life.routeplanner.distance.TimeCalculator
 import com.vintage4life.routeplanner.model.Location
 import com.vintage4life.routeplanner.model.OptimizationCriteria
 import com.vintage4life.routeplanner.model.Route
@@ -13,22 +14,17 @@ import com.vintage4life.routeplanner.model.Route
  * Kernservice die route-optimalisatie orkestreert.
  *
  * Conform UML:
- *  - velden: [algorithm: TSPAlgorithm], [calculator: DistanceCalculator]
+ *  - velden: [algorithm: TSPAlgorithm]
  *  - methoden: [planRoute()], [setAlgorithm()]
  *
  * Het algoritme is uitwisselbaar via [setAlgorithm()] (Strategy pattern).
- * De [calculator] is als afhankelijkheid opgeslagen conform de UML-relatie
- * en wordt gebruikt door de algorithms bij hun interne matrixopbouw.
+ * De calculator wordt dynamisch gekozen op basis van [OptimizationCriteria].
  *
  * @param algorithm   TSP-algoritme voor route-optimalisatie (standaard: TwoOpt + NearestNeighbor)
- * @param calculator  Afstandsberekening (standaard: Haversine)
  */
 class RoutePlannerService(
-    private var algorithm: TSPAlgorithm = TwoOptAlgorithm(),
-    private val calculator: DistanceCalculator = HaversineCalculator()
+    private var algorithm: TSPAlgorithm = TwoOptAlgorithm()
 ) {
-
-    private val TAG = "RoutePlannerService"
 
     /**
      * Optimaliseert een lijst van stops voor het gegeven criterium.
@@ -37,18 +33,40 @@ class RoutePlannerService(
      * @throws IllegalArgumentException bij minder dan 2 stops
      */
     fun planRoute(stops: List<Location>, criteria: OptimizationCriteria): Route {
-        Log.d(TAG, "Planning route for ${stops.size} stops with criteria: $criteria")
         require(stops.size >= 2) { "Minimaal 2 stops vereist voor routeberekening." }
 
-        val route = algorithm.solve(stops, criteria)
-        
-        Log.d(TAG, "Route result summary:")
-        Log.d(TAG, " - Optimization used: $criteria")
-        Log.d(TAG, " - Total distance:    ${"%.2f".format(route.totalDistance)} km")
-        Log.d(TAG, " - Estimated time:    ${"%.0f".format(route.estimatedTimeMin)} min")
-        Log.d(TAG, " - CO2 Emissions:     ${"%.2f".format(route.totalDistance * 0.200)} kg")
-        
-        return route
+        val calculator = when (criteria) {
+            OptimizationCriteria.DISTANCE -> HaversineCalculator()
+            OptimizationCriteria.TIME     -> TimeCalculator()
+            OptimizationCriteria.SUSTAINABILITY -> CO2Calculator()
+        }
+
+        // 1. Solve the TSP using the selected optimization cost strategy
+        val optimizedRoute = algorithm.solve(stops, calculator)
+
+        // 2. Calculate display metrics for the final result
+        val distCalc = HaversineCalculator()
+        val timeCalc = TimeCalculator()
+        val co2Calc  = CO2Calculator()
+
+        var totalDist = 0.0
+        var totalTime = 0.0
+        var totalCO2  = 0.0
+
+        for (i in 0 until optimizedRoute.locations.size - 1) {
+            val from = optimizedRoute.locations[i]
+            val to   = optimizedRoute.locations[i+1]
+            totalDist += distCalc.calculate(from, to)
+            totalTime += timeCalc.calculate(from, to) * 60.0 // hours to minutes
+            totalCO2  += co2Calc.calculate(from, to)
+        }
+
+        return optimizedRoute.copy(
+            totalDistance    = totalDist,
+            estimatedTimeMin = totalTime,
+            totalCO2Grams    = totalCO2,
+            criteria         = criteria
+        )
     }
 
     /**
