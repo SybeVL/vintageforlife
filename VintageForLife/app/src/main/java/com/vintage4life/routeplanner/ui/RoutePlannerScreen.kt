@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.mapbox.geojson.Point
-import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
@@ -33,29 +32,25 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.UUID
 
-/**
- * Hoofdscherm van de RoutePlanner-app.
- * Leest state via de UML-conforme ViewModel-velden: [stops], [route], [error].
- */
 @Composable
 fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val context = LocalContext.current
 
-    // UML-conforme namen: stops, route, error
     val stops         by viewModel.stops.collectAsState()
     val route         by viewModel.route.collectAsState()
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
 
-    // Startpositie: Nederland — voorkomt dat de kaart opent op de Mapbox-standaard (USA)
+    // Startpositie: Nederland als fallback
     val viewportState = rememberMapViewportState {
         setCameraOptions {
-            center(Point.fromLngLat(5.3878, 52.1561)) // Amersfoort, centrum Nederland
+            center(Point.fromLngLat(5.3878, 52.1561))
             zoom(7.0)
         }
     }
-    val scope         = rememberCoroutineScope()
-    val geocoder      = remember { Geocoder(context, Locale.getDefault()) }
+
+    val scope    = rememberCoroutineScope()
+    val geocoder = remember { Geocoder(context, Locale.getDefault()) }
 
     var nameInput        by remember { mutableStateOf("") }
     var addressInput     by remember { mutableStateOf("") }
@@ -116,23 +111,11 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         puckBearing        = PuckBearing.COURSE
                         puckBearingEnabled = true
                     }
+
                     stopsAnnotationManager   = mapView.annotations.createPointAnnotationManager()
                     addressAnnotationManager = mapView.annotations.createPointAnnotationManager()
 
-                    var hasInitiallyCentered = false
                     val newListener = OnIndicatorPositionChangedListener { point ->
-                        if (!hasInitiallyCentered) {
-                            // Zet de camera direct op de GPS-coördinaten.
-                            // Dit is betrouwbaarder dan transitionToFollowPuckState()
-                            // omdat het niet afhankelijk is van de viewport-state.
-                            mapView.mapboxMap.setCamera(
-                                CameraOptions.Builder()
-                                    .center(Point.fromLngLat(point.longitude(), point.latitude()))
-                                    .zoom(14.0)
-                                    .build()
-                            )
-                            hasInitiallyCentered = true
-                        }
                         if (route == null) {
                             scope.launch {
                                 val address = withContext(Dispatchers.IO) {
@@ -171,7 +154,6 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
 
-                // Foutmelding (UML: error: String)
                 error?.let {
                     Text(
                         text  = it,
@@ -197,8 +179,6 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     placeholder   = { Text("e.g. Dam 1, Amsterdam") }
                 )
 
-                // Stop toevoegen — geocoder → Location → viewModel.addStop(location)
-                // Conform UML: addStop(location): void
                 Button(
                     onClick = {
                         if (addressInput.isNotBlank()) {
@@ -235,11 +215,9 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         Text("Add stop")
                 }
 
-                // Stoplijst: Toont de geoptimaliseerde route indien beschikbaar, anders de invoerlijst.
-                val displayStops = route?.locations ?: stops
-                if (displayStops.isNotEmpty()) {
+                if (stops.isNotEmpty()) {
                     LazyColumn(Modifier.heightIn(max = 110.dp)) {
-                        itemsIndexed(displayStops) { index, stop ->
+                        itemsIndexed(stops) { index, stop ->
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -250,7 +228,6 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                                     style    = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f)
                                 )
-                                // Conform UML: removeStop(location): void
                                 TextButton(onClick = { viewModel.removeStop(stop) }) {
                                     Text("Remove")
                                 }
@@ -259,7 +236,6 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     }
                 }
 
-                // Optimalisatiecriterium
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment     = Alignment.CenterVertically
@@ -286,7 +262,6 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                 val isLoading by viewModel.isLoading.collectAsState()
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
-                        // Conform UML: planRoute()
                         onClick  = { viewModel.planRoute(selectedCriteria) },
                         enabled  = stops.size >= 2 && !isLoading,
                         modifier = Modifier.weight(1f)
@@ -305,14 +280,9 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     ) { Text("Clear") }
                 }
 
-                // Routesamenvatting (UML: route.totalDistance)
                 route?.let {
                     Text(
-                        text  = "Route: %.1f km  |  ~%.0f min  |  %.0f g CO₂".format(
-                            it.totalDistance,
-                            it.estimatedTimeMin,
-                            it.totalCO2Grams
-                        ),
+                        text  = "Route: %.1f km  |  ~%.0f min".format(it.totalDistance, it.estimatedTimeMin),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
