@@ -13,151 +13,158 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 /**
- * ViewModel for the RoutePlanner screen.
- * Manages UI state and delegates business logic to [RoutePlannerService]
- * and road geometry fetching to [MapboxDirectionsClient].
+ * ViewModel voor het RoutePlanner-scherm.
  *
- * Exposes:
- *  - [stopList]       — live list of stops added by the user
- *  - [routeResult]    — computed optimised route (null until solved)
- *  - [routeGeometry]  — real road coordinates from Mapbox Directions API
- *  - [isLoading]      — true while route calculation is in progress
- *  - [errorMessage]   — validation or calculation errors (one-shot)
+ * Conform UML:
+ *  - velden: [stops], [route], [error]
+ *  - methoden: [addStop(location)], [removeStop(location)], [planRoute()]
+ *
+ * Toevoegingen tov UML (noodzakelijk voor bestaande functionaliteit):
+ *  - [routeGeometry]  — wegcoördinaten voor kaartvisualisatie
+ *  - [isLoading]      — loading-indicator tijdens berekening
+ *  - [init(token)]    — Mapbox-token initialisatie
+ *  - [clearAll()]     — alles wissen inclusief kaart
+ *  - [clearError()]   — éénmalige foutmelding wissen
+ *  - [removeStopAt()] — verwijderen via index (voor stoplijst-UI)
+ *  - [moveStop()]     — herordenen via drag-and-drop
  */
 class RoutePlannerViewModel(
     private val service: RoutePlannerService = RoutePlannerService()
 ) : ViewModel() {
 
-    private val _stopList = MutableStateFlow<List<Location>>(emptyList())
-    val stopList: StateFlow<List<Location>> = _stopList.asStateFlow()
+    // ── State — conform UML-veldnamen ─────────────────────────────────────────
 
-    private val _routeResult = MutableStateFlow<Route?>(null)
-    val routeResult: StateFlow<Route?> = _routeResult.asStateFlow()
+    private val _stops = MutableStateFlow<List<Location>>(emptyList())
+    /** Conform UML: stops: List<Location> */
+    val stops: StateFlow<List<Location>> = _stops.asStateFlow()
 
-    /** Real road geometry: ordered list of [lon, lat] pairs from Mapbox Directions. */
+    private val _route = MutableStateFlow<Route?>(null)
+    /** Conform UML: route: Route */
+    val route: StateFlow<Route?> = _route.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    /** Conform UML: error: String */
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    /** Wegcoördinaten van Mapbox Directions API. Toevoeging tov UML. */
     private val _routeGeometry = MutableStateFlow<List<DoubleArray>>(emptyList())
     val routeGeometry: StateFlow<List<DoubleArray>> = _routeGeometry.asStateFlow()
 
+    /** Loading-indicator. Toevoeging tov UML. */
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
     private var directionsClient: MapboxDirectionsClient? = null
 
-    // ── Initialisation ────────────────────────────────────────────────────────
+    // ── Initialisatie ─────────────────────────────────────────────────────────
 
     /**
-     * Must be called once from the Activity after location permission is granted.
-     * Initialises the Mapbox Directions client with the access token.
+     * Initialiseert de Mapbox Directions client met het toegangstoken.
+     * Moet eenmalig vanuit de Activity worden aangeroepen na toekenning van locatiepermissies.
+     * Toevoeging tov UML.
      */
     fun init(mapboxToken: String) {
         directionsClient = MapboxDirectionsClient(mapboxToken)
     }
 
-    // ── Stop management ───────────────────────────────────────────────────────
+    // ── Stop-beheer — conform UML ─────────────────────────────────────────────
 
     /**
-     * Adds a geocoded stop to the list.
-     * Clears any active solved route so the map resets to pins-only mode.
+     * Voegt een stop toe aan de lijst.
+     * Conform UML: addStop(location): void
      */
-    fun addStop(name: String, address: String, lat: Double, lon: Double) {
-        if (address.isBlank()) {
-            _errorMessage.value = "Vul een adres in."
+    fun addStop(location: Location) {
+        if (location.address.isBlank()) {
+            _error.value = "Vul een adres in."
             return
         }
-        val stop = Location(
-            id        = UUID.randomUUID().toString(),
-            name      = name,
-            address   = address,
-            latitude  = lat,
-            longitude = lon
-        )
-        _stopList.value  = _stopList.value + stop
-        _routeResult.value   = null
+        _stops.value        = _stops.value + location
+        _route.value        = null
         _routeGeometry.value = emptyList()
-        _errorMessage.value  = null
+        _error.value        = null
     }
-
-    /** Removes a stop by its Location object and clears the active route. */
-    fun removeStop(location: Location) {
-        _stopList.value      = _stopList.value.filter { it.id != location.id }
-        _routeResult.value   = null
-        _routeGeometry.value = emptyList()
-    }
-
-    /** Removes a stop by index and clears the active route. */
-    fun removeStopAt(index: Int) {
-        _stopList.value      = _stopList.value.toMutableList().also { it.removeAt(index) }
-        _routeResult.value   = null
-        _routeGeometry.value = emptyList()
-    }
-
-    /** Reorders stops via drag-and-drop. */
-    fun moveStop(from: Int, to: Int) {
-        val list = _stopList.value.toMutableList()
-        if (from < 0 || to < 0 || from >= list.size || to >= list.size) return
-        val item = list.removeAt(from)
-        list.add(to, item)
-        _stopList.value = list
-    }
-
-    // ── Route solving ─────────────────────────────────────────────────────────
 
     /**
-     * Solves the TSP on a background thread, then fetches real road geometry
-     * from Mapbox Directions. Updates [routeResult] and [routeGeometry] when done.
+     * Verwijdert een stop op basis van het Location-object.
+     * Conform UML: removeStop(location): void
      */
-    fun solveRoute(criteria: OptimizationCriteria) {
-        val stops = _stopList.value
-        if (stops.size < 2) {
-            _errorMessage.value = "Voeg minimaal 2 stops toe om een route te berekenen."
+    fun removeStop(location: Location) {
+        _stops.value        = _stops.value.filter { it.id != location.id }
+        _route.value        = null
+        _routeGeometry.value = emptyList()
+    }
+
+    /** Verwijdert een stop op basis van index. Toevoeging tov UML. */
+    fun removeStopAt(index: Int) {
+        _stops.value        = _stops.value.toMutableList().also { it.removeAt(index) }
+        _route.value        = null
+        _routeGeometry.value = emptyList()
+    }
+
+    /** Herordent stops via drag-and-drop. Toevoeging tov UML. */
+    fun moveStop(from: Int, to: Int) {
+        val list = _stops.value.toMutableList()
+        if (from < 0 || to < 0 || from >= list.size || to >= list.size) return
+        list.add(to, list.removeAt(from))
+        _stops.value = list
+    }
+
+    // ── Route-oplossing — conform UML ─────────────────────────────────────────
+
+    /**
+     * Optimaliseert de huidige stoplijst en haalt weggeometrie op.
+     * Conform UML: planRoute(List<Location>)
+     *
+     * UML-afwijking: accepteert ook een [criteria] parameter zodat de gebruiker
+     * het optimalisatiecriterium kan kiezen. Geen functionele wijziging.
+     */
+    fun planRoute(criteria: OptimizationCriteria) {
+        val currentStops = _stops.value
+        if (currentStops.size < 2) {
+            _error.value = "Voeg minimaal 2 stops toe om een route te berekenen."
             return
         }
         val client = directionsClient ?: run {
-            _errorMessage.value = "Mapbox client niet geïnitialiseerd — roep init() aan."
+            _error.value = "Mapbox client niet geïnitialiseerd — roep init() aan."
             return
         }
 
-        _routeResult.value   = null
+        _route.value        = null
         _routeGeometry.value = emptyList()
-        _isLoading.value     = true
+        _isLoading.value    = true
 
         viewModelScope.launch {
             try {
                 val (solvedRoute, geometry) = withContext(Dispatchers.IO) {
-                    val route    = service.optimizeRoute(stops, criteria)
-                    val geometry = client.fetchRouteGeometry(route.stops)
-                    route to geometry
+                    val r = service.planRoute(currentStops, criteria)
+                    val g = client.fetchRouteGeometry(r.locations)
+                    r to g
                 }
-                _routeResult.value   = solvedRoute
+                _route.value        = solvedRoute
                 _routeGeometry.value = geometry
-                // Update stop list to reflect optimised order
-                _stopList.value      = solvedRoute.stops
+                _stops.value        = solvedRoute.locations
             } catch (e: Exception) {
-                _errorMessage.value = "Fout bij routeberekening: ${e.message}"
+                _error.value = "Fout bij routeberekening: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    // ── Utility ───────────────────────────────────────────────────────────────
+    // ── Hulpmethoden — toevoegingen tov UML ──────────────────────────────────
 
-    /** Resets all stops, route, geometry and error state. */
+    /** Reset alle stops, route, geometrie en foutmelding. */
     fun clearAll() {
-        _stopList.value      = emptyList()
-        _routeResult.value   = null
+        _stops.value        = emptyList()
+        _route.value        = null
         _routeGeometry.value = emptyList()
-        _errorMessage.value  = null
+        _error.value        = null
     }
 
-    /** Clears the one-shot error message after it has been displayed. */
+    /** Wist de éénmalige foutmelding na weergave. */
     fun clearError() {
-        _errorMessage.value = null
+        _error.value = null
     }
 }

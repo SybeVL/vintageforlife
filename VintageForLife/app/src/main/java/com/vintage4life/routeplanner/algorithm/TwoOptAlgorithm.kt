@@ -1,29 +1,51 @@
 package com.vintage4life.routeplanner.algorithm
 
 import com.vintage4life.routeplanner.distance.DistanceMatrix
+import com.vintage4life.routeplanner.distance.HaversineCalculator
+import com.vintage4life.routeplanner.model.Location
+import com.vintage4life.routeplanner.model.Route
 
 /**
- * Two-Opt local search improvement for TSP.
+ * Two-Opt lokale zoekverbetering voor TSP.
  *
- * Complexity: O(n²) per iteration, typically O(n³) worst case overall.
- * Takes an initial route (e.g. from NearestNeighborAlgorithm) and
- * iteratively reverses sub-segments when doing so reduces total distance.
+ * Complexiteit: O(n²) per iteratie, worst case O(n³).
+ * Gebruikt [NearestNeighborAlgorithm] voor de initiële route
+ * en verbetert deze iteratief via segment-omkeringen.
  *
- * @param maxIterations  Safety cap on improvement iterations (default: 1000)
+ * Conform UML:
+ *  - solve(List<Location>): Route
+ *  - reverse(...): void  (hernoemd van reverseSegment)
+ *  - Afhankelijkheid van NearestNeighborAlgorithm (UML-pijl)
+ *
+ * @param initializer    Constructie-heuristiek voor de beginroute
+ * @param maxIterations  Veiligheidsgrens voor verbeteriteraties
  */
-class TwoOptAlgorithm(private val maxIterations: Int = 1000) : TSPAlgorithm {
+class TwoOptAlgorithm(
+    private val initializer: NearestNeighborAlgorithm = NearestNeighborAlgorithm(),
+    private val maxIterations: Int = 1000
+) : TSPAlgorithm {
 
-    override fun solve(matrix: DistanceMatrix): List<Int> {
-        // TwoOpt expects an initial route; when called standalone it falls back to 0..n-1
-        val initial = (0 until matrix.size()).toMutableList()
-        return improve(initial, matrix)
+    /**
+     * Berekent een geoptimaliseerde route via NearestNeighbor + 2-opt.
+     * Conform UML: solve(List<Location>): Route
+     */
+    override fun solve(locations: List<Location>): Route {
+        val matrix          = DistanceMatrix(locations, HaversineCalculator())
+        val initialIndices  = initializer.solveIndices(matrix)
+        val improvedIndices = improve(initialIndices, matrix)
+
+        val improvedRoute = initializer.buildRoute(improvedIndices, matrix)
+        val estimatedTime = (improvedRoute.totalDistance / 50.0) * 60.0
+        return improvedRoute.copy(estimatedTimeMin = estimatedTime)
     }
 
     /**
-     * Improve an existing route using Two-Opt swaps.
-     * @param initialRoute  Route produced by a construction heuristic
-     * @param matrix        Distance matrix
-     * @return              Locally optimised route
+     * Verbetert een bestaande route via 2-opt swaps.
+     * Blijft intern bruikbaar door [RoutePlannerService].
+     *
+     * @param initialRoute  Route van een constructie-heuristiek (als indices)
+     * @param matrix        Afstandsmatrix
+     * @return              Lokaal geoptimaliseerde route als indices
      */
     fun improve(initialRoute: List<Int>, matrix: DistanceMatrix): List<Int> {
         val route = initialRoute.toMutableList()
@@ -39,8 +61,7 @@ class TwoOptAlgorithm(private val maxIterations: Int = 1000) : TSPAlgorithm {
                 for (j in i + 2 until n) {
                     val delta = swapGain(route, i, j, matrix)
                     if (delta < -1e-10) {
-                        // Reverse the segment between i+1 and j
-                        reverseSegment(route, i + 1, j)
+                        reverse(route, i + 1, j)
                         improved = true
                     }
                 }
@@ -50,26 +71,22 @@ class TwoOptAlgorithm(private val maxIterations: Int = 1000) : TSPAlgorithm {
         return route
     }
 
-    /** Calculates the distance gain from a 2-opt swap between edges (i, i+1) and (j, j+1). */
     private fun swapGain(route: List<Int>, i: Int, j: Int, matrix: DistanceMatrix): Double {
         val n = route.size
-        val a = route[i]
-        val b = route[i + 1]
-        val c = route[j]
-        val d = route[(j + 1) % n]
-
-        val before = matrix.distance(a, b) + matrix.distance(c, d)
-        val after  = matrix.distance(a, c) + matrix.distance(b, d)
-        return after - before
+        val a = route[i];      val b = route[i + 1]
+        val c = route[j];      val d = route[(j + 1) % n]
+        return (matrix.distance(a, c) + matrix.distance(b, d)) -
+               (matrix.distance(a, b) + matrix.distance(c, d))
     }
 
-    private fun reverseSegment(route: MutableList<Int>, from: Int, to: Int) {
-        var l = from
-        var r = to
+    /**
+     * Keert het segment [from..to] in de route om.
+     * Conform UML: reverse(...): void
+     */
+    private fun reverse(route: MutableList<Int>, from: Int, to: Int) {
+        var l = from; var r = to
         while (l < r) {
-            val tmp = route[l]
-            route[l] = route[r]
-            route[r] = tmp
+            val tmp = route[l]; route[l] = route[r]; route[r] = tmp
             l++; r--
         }
     }

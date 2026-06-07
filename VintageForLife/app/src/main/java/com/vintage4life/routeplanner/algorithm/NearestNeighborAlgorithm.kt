@@ -1,17 +1,37 @@
 package com.vintage4life.routeplanner.algorithm
 
 import com.vintage4life.routeplanner.distance.DistanceMatrix
+import com.vintage4life.routeplanner.distance.HaversineCalculator
+import com.vintage4life.routeplanner.model.Location
+import com.vintage4life.routeplanner.model.Route
 
 /**
- * Greedy Nearest Neighbor heuristic for TSP.
+ * Greedy Nearest Neighbor heuristiek voor TSP.
  *
- * Complexity: O(n²)
- * Starts from index 0, always visits the closest unvisited stop next.
- * Produces a valid but unoptimised initial route.
+ * Complexiteit: O(n²)
+ * Start vanuit index 0 en bezoekt altijd de dichtstbijzijnde onbezochte stop.
+ * Levert een geldige maar niet-geoptimaliseerde initiële route op.
+ *
+ * Conform UML: solve(List<Location>): Route, buildRoute(...): Route
  */
 class NearestNeighborAlgorithm : TSPAlgorithm {
 
-    override fun solve(matrix: DistanceMatrix): List<Int> {
+    /**
+     * Berekent een greedy route langs alle stops.
+     * Conform UML: solve(List<Location>): Route
+     */
+    override fun solve(locations: List<Location>): Route {
+        val matrix = DistanceMatrix(locations, HaversineCalculator())
+        val indices = solveIndices(matrix)
+        return buildRoute(indices, matrix)
+    }
+
+    /**
+     * Kern-algoritme: werkt op indices van de afstandsmatrix.
+     * Intern hulpmiddel voor [TwoOptAlgorithm] die de matrix hergebruikt.
+     * Conform UML: onderdeel van buildRoute-verantwoordelijkheid.
+     */
+    fun solveIndices(matrix: DistanceMatrix): List<Int> {
         val n = matrix.size()
         val visited = BooleanArray(n) { false }
         val route = mutableListOf<Int>()
@@ -40,5 +60,21 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
         }
 
         return route
+    }
+
+    /**
+     * Zet een geordende lijst van indices om naar een [Route].
+     * Berekent ook de totale afstand.
+     * Conform UML: buildRoute(...): Route
+     */
+    fun buildRoute(indices: List<Int>, matrix: DistanceMatrix): Route {
+        val orderedLocations = indices.map { matrix.locationAt(it) }
+        val totalDistance = (0 until indices.size - 1).sumOf { i ->
+            matrix.distance(indices[i], indices[i + 1])
+        }
+        return Route(
+            locations     = orderedLocations,
+            totalDistance = totalDistance
+        )
     }
 }
