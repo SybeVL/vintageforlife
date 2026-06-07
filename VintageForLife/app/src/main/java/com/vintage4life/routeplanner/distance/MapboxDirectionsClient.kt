@@ -59,10 +59,11 @@ class MapboxDirectionsClient(private val accessToken: String) {
      * Haalt afstand en rijtijd op tussen precies twee locaties.
      */
     private fun fetchPair(from: Location, to: Location): MapboxRouteResponse? {
+        // overview=false en geen geometries: we hebben alleen afstand en tijd nodig
         val url = "https://api.mapbox.com/directions/v5/mapbox/driving/" +
                   "${from.longitude},${from.latitude};" +
                   "${to.longitude},${to.latitude}" +
-                  "?geometries=geojson&overview=false&access_token=$accessToken"
+                  "?overview=false&access_token=$accessToken"
         return parseDirectionsResponse(url)
     }
 
