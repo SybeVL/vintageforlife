@@ -62,10 +62,16 @@ class RoutePlannerService(
         var totalTimeMin  = 0.0
         var totalCO2Grams = 0.0
 
-        for (i in 0 until optimizedRoute.locations.size - 1) {
-            val from = optimizedRoute.locations[i]
-            val to   = optimizedRoute.locations[i + 1]
+        // Alle segmenten inclusief terugrit naar startpunt (gesloten TSP: A→B→C→D→A)
+        val locs = optimizedRoute.locations
+        val segments = (0 until locs.size - 1).map { locs[it] to locs[it + 1] } +
+                       listOf(locs.last() to locs.first())   // terugrit
 
+        val haversine = HaversineCalculator()
+        val timeCalc  = TimeCalculator()
+        val co2Calc   = CO2Calculator()
+
+        for ((from, to) in segments) {
             if (roadMatrix != null) {
                 val fi = stops.indexOfFirst { it.id == from.id }
                 val ti = stops.indexOfFirst { it.id == to.id }
@@ -76,10 +82,10 @@ class RoutePlannerService(
                     totalCO2Grams += distKm * co2GramsPerKm(distKm)
                 }
             } else {
-                val dist = HaversineCalculator().calculate(from, to)
+                val dist = haversine.calculate(from, to)
                 totalDistKm   += dist
-                totalTimeMin  += TimeCalculator().calculate(from, to) * 60.0
-                totalCO2Grams += CO2Calculator().calculate(from, to)
+                totalTimeMin  += timeCalc.calculate(from, to) * 60.0
+                totalCO2Grams += co2Calc.calculate(from, to)
             }
         }
 

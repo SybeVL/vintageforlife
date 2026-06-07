@@ -69,12 +69,17 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
      */
     fun buildRoute(indices: List<Int>, matrix: DistanceMatrix): Route {
         val orderedLocations = indices.map { matrix.locationAt(it) }
-        val totalCost = (0 until indices.size - 1).sumOf { i ->
+
+        // Tussenliggende segmenten
+        val segmentCost = (0 until indices.size - 1).sumOf { i ->
             matrix.distance(indices[i], indices[i + 1])
         }
+        // Terugrit naar startpunt (gesloten TSP: A→B→C→D→A)
+        val returnCost = matrix.distance(indices.last(), indices.first())
+
         return Route(
             locations     = orderedLocations,
-            totalDistance = totalCost
+            totalDistance = segmentCost + returnCost
         )
     }
 }

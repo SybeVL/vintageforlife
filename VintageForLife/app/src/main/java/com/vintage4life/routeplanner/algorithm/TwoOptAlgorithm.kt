@@ -6,16 +6,14 @@ import com.vintage4life.routeplanner.model.Location
 import com.vintage4life.routeplanner.model.Route
 
 /**
- * Two-Opt lokale zoekverbetering voor TSP.
+ * Two-Opt lokale zoekverbetering voor gesloten TSP (A→B→C→D→A).
  *
  * Complexiteit: O(n²) per iteratie, worst case O(n³).
- * Gebruikt [NearestNeighborAlgorithm] voor de initiële route
- * en verbetert deze iteratief via segment-omkeringen.
+ * Gebruikt [NearestNeighborAlgorithm] voor de initiële route en verbetert
+ * deze iteratief via segment-omkeringen.
  *
- * Conform UML:
- *  - solve(List<Location>, DistanceCalculator): Route
- *  - reverse(...): void
- *  - Afhankelijkheid van NearestNeighborAlgorithm (UML-pijl)
+ * De route is GESLOTEN: na de laatste stop keert de chauffeur terug naar de
+ * eerste stop. swapGain houdt hier rekening mee via de cyclische wrap.
  */
 class TwoOptAlgorithm(
     private val initializer: NearestNeighborAlgorithm = NearestNeighborAlgorithm(),
@@ -40,9 +38,7 @@ class TwoOptAlgorithm(
             iterations++
 
             for (i in 0 until n - 1) {
-                // j loopt tot n-1 exclusief: laatste stop heeft geen uitgaande kant
-                // (open route — geen terugkeer naar start)
-                for (j in i + 2 until n - 1) {
+                for (j in i + 2 until n) {
                     val delta = swapGain(route, i, j, matrix)
                     if (delta < -1e-10) {
                         reverse(route, i + 1, j)
@@ -56,24 +52,20 @@ class TwoOptAlgorithm(
     }
 
     /**
-     * Berekent de winst van een 2-opt swap tussen kanten (i→i+1) en (j→j+1).
-     *
-     * BUG-FIX: de vorige versie deed `else route[0]` wanneer j = n-1, wat een
-     * gesloten rondrit veronderstelde. Onze bezorgroute is OPEN — er is geen
-     * terugkeer naar de beginlocatie. Door de outer-loop tot `n-1` te beperken
-     * wordt j+1 altijd een geldige index.
+     * Berekent de winst van een 2-opt swap voor een GESLOTEN route.
+     * route[0] is de wrap-around: na de laatste stop keer je terug naar de start.
      */
     private fun swapGain(route: List<Int>, i: Int, j: Int, matrix: DistanceMatrix): Double {
+        val n = route.size
         val a = route[i]
         val b = route[i + 1]
         val c = route[j]
-        val d = route[j + 1]   // altijd geldig door loop-begrenzing
+        val d = route[(j + 1) % n]   // cyclische wrap voor gesloten rondrit
 
         return (matrix.distance(a, c) + matrix.distance(b, d)) -
                (matrix.distance(a, b) + matrix.distance(c, d))
     }
 
-    /** Conform UML: reverse(...): void */
     private fun reverse(route: MutableList<Int>, from: Int, to: Int) {
         var l = from; var r = to
         while (l < r) {
