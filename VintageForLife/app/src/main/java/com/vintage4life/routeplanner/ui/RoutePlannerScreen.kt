@@ -166,17 +166,17 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                 OutlinedTextField(
                     value         = nameInput,
                     onValueChange = { nameInput = it },
-                    label         = { Text("Stop name (optional)") },
+                    label         = { Text("Stopnaam (optioneel)") },
                     modifier      = Modifier.fillMaxWidth(),
                     singleLine    = true
                 )
                 OutlinedTextField(
                     value         = addressInput,
                     onValueChange = { addressInput = it },
-                    label         = { Text("Address") },
+                    label         = { Text("Adres") },
                     modifier      = Modifier.fillMaxWidth(),
                     singleLine    = true,
-                    placeholder   = { Text("e.g. Dam 1, Amsterdam") }
+                    placeholder   = { Text("bijv. Dam 1, Amsterdam") }
                 )
 
                 Button(
@@ -212,7 +212,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     if (isSearching)
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     else
-                        Text("Add stop")
+                        Text("Stop toevoegen")
                 }
 
                 if (stops.isNotEmpty()) {
@@ -229,7 +229,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                                     modifier = Modifier.weight(1f)
                                 )
                                 TextButton(onClick = { viewModel.removeStop(stop) }) {
-                                    Text("Remove")
+                                    Text("Verwijder")
                                 }
                             }
                         }
@@ -240,7 +240,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment     = Alignment.CenterVertically
                 ) {
-                    Text("Optimise:", style = MaterialTheme.typography.bodySmall)
+                    Text("Optimaliseer:", style = MaterialTheme.typography.bodySmall)
                     OptimizationCriteria.entries.forEach { criteria ->
                         FilterChip(
                             selected = selectedCriteria == criteria,
@@ -248,8 +248,8 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                             label    = {
                                 Text(
                                     when (criteria) {
-                                        OptimizationCriteria.DISTANCE       -> "Distance"
-                                        OptimizationCriteria.TIME           -> "Time"
+                                        OptimizationCriteria.DISTANCE       -> "Afstand"
+                                        OptimizationCriteria.TIME           -> "Tijd"
                                         OptimizationCriteria.SUSTAINABILITY -> "CO₂"
                                     },
                                     style = MaterialTheme.typography.labelSmall
@@ -272,12 +272,12 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                                 color    = MaterialTheme.colorScheme.onPrimary
                             )
                         else
-                            Text("Solve route")
+                            Text("Bereken route")
                     }
                     OutlinedButton(
                         onClick  = { viewModel.clearAll() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("Clear") }
+                    ) { Text("Wissen") }
                 }
 
                 route?.let {
