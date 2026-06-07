@@ -27,4 +27,7 @@ data class Route(
      */
     fun addLocation(location: Location): Route =
         copy(locations = locations + location)
+
 }
+// Kotlin genereert automatisch getTotalDistance() als JVM-getter van [totalDistance].
+// Een expliciete methode zou een JVM-signatuurbotsing veroorzaken.

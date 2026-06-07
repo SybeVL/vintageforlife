@@ -12,5 +12,7 @@ abstract class User(
     open val id: String,
     open val name: String,
     open val email: String,
-    val role: Role
+    protected open val role: Role
 )
+// Kotlin genereert automatisch getRole() als JVM-getter van de [role] property.
+// Een expliciete getRole()-methode zou een JVM-signatuurbotsing veroorzaken.
