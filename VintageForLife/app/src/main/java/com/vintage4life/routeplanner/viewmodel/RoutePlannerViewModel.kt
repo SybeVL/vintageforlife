@@ -3,7 +3,6 @@ package com.vintage4life.routeplanner.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vintage4life.routeplanner.distance.MapboxDirectionsClient
-import com.vintage4life.routeplanner.distance.MapboxMatrixClient
 import com.vintage4life.routeplanner.model.Location
 import com.vintage4life.routeplanner.model.OptimizationCriteria
 import com.vintage4life.routeplanner.model.Route
@@ -40,11 +39,9 @@ class RoutePlannerViewModel(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private var directionsClient: MapboxDirectionsClient? = null
-    private var matrixClient: MapboxMatrixClient? = null
 
     fun init(mapboxToken: String) {
         directionsClient = MapboxDirectionsClient(mapboxToken)
-        matrixClient     = MapboxMatrixClient(mapboxToken)
     }
 
     // ── Stop-beheer ───────────────────────────────────────────────────────────
@@ -100,8 +97,8 @@ class RoutePlannerViewModel(
             try {
                 val (solvedRoute, routeData) = withContext(Dispatchers.IO) {
 
-                    // 1. Haal N×N matrix op — geeft echte wegdata voor TSP
-                    val roadMatrix = matrixClient?.fetchMatrix(currentStops)
+                    // 1. Bouw N×N matrix via Directions API — echte wegdata voor TSP
+                    val roadMatrix = directions.buildRoadMatrix(currentStops)
 
                     // 2. Los TSP op met echte data (of Haversine als fallback)
                     val r = service.planRoute(currentStops, criteria, roadMatrix)
