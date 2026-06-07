@@ -137,8 +137,12 @@ class RoutePlannerViewModel(
 
         viewModelScope.launch {
             try {
+                // Ensure every request is independent: sort stops by a deterministic property (ID)
+                // but keep the first stop as the fixed depot/start point.
+                val baseStops = currentStops.take(1) + currentStops.drop(1).sortedBy { it.id }
+
                 val (solvedRoute, routeData) = withContext(Dispatchers.IO) {
-                    val r = service.planRoute(currentStops, criteria)
+                    val r = service.planRoute(baseStops, criteria)
                     val data = client.fetchRouteData(r.locations)
                     r to data
                 }
@@ -147,27 +151,24 @@ class RoutePlannerViewModel(
                     // Update the route with real road metrics from Mapbox
                     val roadDistanceKm = routeData.distanceMeters / 1000.0
                     
-                    // CO2 calculation should be consistent with the logic in CO2Calculator
-                    // Use a weighted average if possible, or just the high-level non-linear logic
+                    // CO2 calculation using aggressive non-linear logic
                     val co2Grams = when {
-                        roadDistanceKm < 2.0  -> roadDistanceKm * 250.0
-                        roadDistanceKm < 8.0  -> roadDistanceKm * 150.0
-                        else                  -> roadDistanceKm * 90.0
+                        roadDistanceKm < 2.5  -> roadDistanceKm * 300.0
+                        roadDistanceKm < 7.5  -> roadDistanceKm * 180.0
+                        else                  -> roadDistanceKm * 100.0
                     }
 
-                    val finalRoute = solvedRoute.copy(
+                    _route.value = solvedRoute.copy(
                         totalDistance = roadDistanceKm,
                         estimatedTimeMin = routeData.durationSeconds / 60.0,
                         totalCO2Grams = co2Grams
                     )
-                    _route.value = finalRoute
                     _routeGeometry.value = routeData.geometry
-                    _stops.value = finalRoute.locations
+                    // We DO NOT update _stops.value here to keep the user's input list stable
+                    // and ensure the next calculation is treated as a "new request" from the original order.
                 } else {
-                    // Fallback if API fails — keep algorithm approximations
                     _route.value = solvedRoute
                     _routeGeometry.value = emptyList()
-                    _stops.value = solvedRoute.locations
                 }
             } catch (e: Exception) {
                 _error.value = "Fout bij routeberekening: ${e.message}"
