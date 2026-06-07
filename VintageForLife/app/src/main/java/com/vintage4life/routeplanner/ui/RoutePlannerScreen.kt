@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
@@ -46,7 +47,13 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
 
-    val viewportState = rememberMapViewportState()
+    // Startpositie: Nederland — voorkomt dat de kaart opent op de Mapbox-standaard (USA)
+    val viewportState = rememberMapViewportState {
+        setCameraOptions {
+            center(Point.fromLngLat(5.3878, 52.1561)) // Amersfoort, centrum Nederland
+            zoom(7.0)
+        }
+    }
     val scope         = rememberCoroutineScope()
     val geocoder      = remember { Geocoder(context, Locale.getDefault()) }
 
@@ -115,7 +122,15 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     var hasInitiallyCentered = false
                     val newListener = OnIndicatorPositionChangedListener { point ->
                         if (!hasInitiallyCentered) {
-                            viewportState.transitionToFollowPuckState()
+                            // Zet de camera direct op de GPS-coördinaten.
+                            // Dit is betrouwbaarder dan transitionToFollowPuckState()
+                            // omdat het niet afhankelijk is van de viewport-state.
+                            mapView.mapboxMap.setCamera(
+                                CameraOptions.Builder()
+                                    .center(Point.fromLngLat(point.longitude(), point.latitude()))
+                                    .zoom(14.0)
+                                    .build()
+                            )
                             hasInitiallyCentered = true
                         }
                         if (route == null) {
