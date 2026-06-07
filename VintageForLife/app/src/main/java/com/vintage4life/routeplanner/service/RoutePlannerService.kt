@@ -1,5 +1,6 @@
 package com.vintage4life.routeplanner.service
 
+import android.util.Log
 import com.vintage4life.routeplanner.algorithm.TSPAlgorithm
 import com.vintage4life.routeplanner.algorithm.TwoOptAlgorithm
 import com.vintage4life.routeplanner.distance.DistanceCalculator
@@ -27,6 +28,8 @@ class RoutePlannerService(
     private val calculator: DistanceCalculator = HaversineCalculator()
 ) {
 
+    private val TAG = "RoutePlannerService"
+
     /**
      * Optimaliseert een lijst van stops voor het gegeven criterium.
      * Conform UML: planRoute(List<Location>)
@@ -34,10 +37,18 @@ class RoutePlannerService(
      * @throws IllegalArgumentException bij minder dan 2 stops
      */
     fun planRoute(stops: List<Location>, criteria: OptimizationCriteria): Route {
+        Log.d(TAG, "Planning route for ${stops.size} stops with criteria: $criteria")
         require(stops.size >= 2) { "Minimaal 2 stops vereist voor routeberekening." }
 
-        val route = algorithm.solve(stops)
-        return route.copy(criteria = criteria)
+        val route = algorithm.solve(stops, criteria)
+        
+        Log.d(TAG, "Route result summary:")
+        Log.d(TAG, " - Optimization used: $criteria")
+        Log.d(TAG, " - Total distance:    ${"%.2f".format(route.totalDistance)} km")
+        Log.d(TAG, " - Estimated time:    ${"%.0f".format(route.estimatedTimeMin)} min")
+        Log.d(TAG, " - CO2 Emissions:     ${"%.2f".format(route.totalDistance * 0.200)} kg")
+        
+        return route
     }
 
     /**

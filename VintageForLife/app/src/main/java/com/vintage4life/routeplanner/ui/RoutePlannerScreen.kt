@@ -46,7 +46,12 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
 
-    val viewportState = rememberMapViewportState()
+    val viewportState = rememberMapViewportState {
+        setCameraOptions {
+            center(Point.fromLngLat(5.3878, 52.1561)) // Centraal Nederland (Amersfoort)
+            zoom(7.0)
+        }
+    }
     val scope         = rememberCoroutineScope()
     val geocoder      = remember { Geocoder(context, Locale.getDefault()) }
 
