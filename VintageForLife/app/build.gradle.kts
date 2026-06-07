@@ -1,9 +1,20 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Manually load local.properties to ensure reliability
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+
+val mapboxToken: String = localProperties.getProperty("MAPBOX_ACCESS_TOKEN") 
+    ?: providers.gradleProperty("MAPBOX_ACCESS_TOKEN").getOrElse("")
 
 android {
     namespace = "com.vintage4life.routeplanner"
@@ -20,16 +31,21 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        val mapboxToken = providers.gradleProperty("MAPBOX_ACCESS_TOKEN").orElse("").get()
+        // Inject as a resource string
         if (mapboxToken.isNotEmpty()) {
             resValue("string", "mapbox_access_token", mapboxToken)
         }
+        
+        // Also inject into BuildConfig as a fallback
+        buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxToken\"")
     }
 
     buildFeatures {
         compose = true
         resValues = true
+        buildConfig = true
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -37,6 +53,12 @@ android {
 
     androidResources {
         noCompress += "so"
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 }
 
@@ -60,8 +82,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    implementation("com.mapbox.maps:android-ndk27:11.7.0")
-    implementation("com.mapbox.extension:maps-compose-ndk27:11.7.0")
+    implementation("com.mapbox.maps:android:11.7.0")
+    implementation("com.mapbox.extension:maps-compose:11.7.0")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
 

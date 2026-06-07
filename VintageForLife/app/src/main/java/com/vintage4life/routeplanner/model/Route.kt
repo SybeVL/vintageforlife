@@ -3,7 +3,8 @@ package com.vintage4life.routeplanner.model
 /**
  * Een berekende bezorgroute.
  *
- * Conform UML: bevat [locations], [totalDistance], [addLocation()], [getTotalDistance()].
+ * Conform UML: bevat [locations], [totalDistance], [addLocation()].
+ * De [totalDistance] property voorziet in de [getTotalDistance()] methode.
  * Extra velden [estimatedTimeMin] en [criteria] zijn niet in UML maar zijn
  * noodzakelijk voor de bestaande UI-functionaliteit (reistijdweergave en
  * optimalisatiecriterium-selectie). Gedocumenteerd als toevoeging.
@@ -26,10 +27,4 @@ data class Route(
      */
     fun addLocation(location: Location): Route =
         copy(locations = locations + location)
-
-    /**
-     * Retourneert de totale afstand in km.
-     * Conform UML: getTotalDistance(): double
-     */
-    fun getTotalDistance(): Double = totalDistance
 }
