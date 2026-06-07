@@ -114,15 +114,14 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         puckBearing        = PuckBearing.COURSE
                         puckBearingEnabled = true
                     }
+                    // Centreer de kaart direct op de gebruiker zodra GPS beschikbaar is,
+                    // zodat de standaard VS-startlocatie nooit zichtbaar is.
+                    viewportState.transitionToFollowPuckState()
+
                     stopsAnnotationManager   = mapView.annotations.createPointAnnotationManager()
                     addressAnnotationManager = mapView.annotations.createPointAnnotationManager()
 
-                    var hasInitiallyCentered = false
                     val newListener = OnIndicatorPositionChangedListener { point ->
-                        if (!hasInitiallyCentered) {
-                            viewportState.transitionToFollowPuckState()
-                            hasInitiallyCentered = true
-                        }
                         if (route == null) {
                             scope.launch {
                                 val address = withContext(Dispatchers.IO) {
