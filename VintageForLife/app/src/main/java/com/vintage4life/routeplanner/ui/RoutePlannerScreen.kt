@@ -285,7 +285,8 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
 
                 route?.let {
                     Text(
-                        text  = "Route: %.1f km  |  ~%.0f min".format(it.totalDistance, it.estimatedTimeMin),
+                        text  = "Route: %.1f km  |  ~%.0f min  |  ~%.0f g CO₂"
+                            .format(it.totalDistance, it.estimatedTimeMin, it.totalCO2Grams),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
