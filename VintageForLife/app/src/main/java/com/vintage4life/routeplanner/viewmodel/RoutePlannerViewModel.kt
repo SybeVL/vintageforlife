@@ -14,40 +14,36 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * ViewModel voor het RoutePlanner-scherm.
- * Conform UML: stops, route, error, addStop(), removeStop(), planRoute()
- */
+// ViewModel for the route planner screen — exposes stops, route, and loading state.
 class RoutePlannerViewModel(
     private val service: RoutePlannerService = RoutePlannerService()
 ) : ViewModel() {
 
-    private val _stops = MutableStateFlow<List<Location>>(emptyList())
+    private val _stops         = MutableStateFlow<List<Location>>(emptyList())
     val stops: StateFlow<List<Location>> = _stops.asStateFlow()
 
-    private val _route = MutableStateFlow<Route?>(null)
+    private val _route         = MutableStateFlow<Route?>(null)
     val route: StateFlow<Route?> = _route.asStateFlow()
 
-    private val _error = MutableStateFlow<String?>(null)
+    private val _error         = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _routeGeometry = MutableStateFlow<List<DoubleArray>>(emptyList())
     val routeGeometry: StateFlow<List<DoubleArray>> = _routeGeometry.asStateFlow()
 
-    private val _isLoading = MutableStateFlow(false)
+    private val _isLoading     = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private var directionsClient: MapboxDirectionsClient? = null
 
+    // Must be called once after the Mapbox token is available.
     fun init(mapboxToken: String) {
         directionsClient = MapboxDirectionsClient(mapboxToken)
     }
 
-    // ── Stop-beheer ───────────────────────────────────────────────────────────
-
     fun addStop(location: Location) {
         if (location.address.isBlank()) {
-            _error.value = "Vul een adres in."
+            _error.value = "Please enter an address."
             return
         }
         _stops.value         = _stops.value + location
@@ -75,16 +71,14 @@ class RoutePlannerViewModel(
         _stops.value = list
     }
 
-    // ── Route-oplossing ───────────────────────────────────────────────────────
-
     fun planRoute(criteria: OptimizationCriteria) {
         val currentStops = _stops.value
         if (currentStops.size < 2) {
-            _error.value = "Voeg minimaal 2 stops toe om een route te berekenen."
+            _error.value = "Add at least 2 stops to calculate a route."
             return
         }
         val client = directionsClient ?: run {
-            _error.value = "Mapbox client niet geïnitialiseerd."
+            _error.value = "Mapbox client not initialised."
             return
         }
 
@@ -96,26 +90,25 @@ class RoutePlannerViewModel(
             try {
                 val (solvedRoute, routeData) = withContext(Dispatchers.IO) {
 
-                    // 1. Bouw N×N matrix met echte wegdata (per criterium andere volgorde)
+                    // 1. Build N×N road matrix from real Directions API data
                     val roadMatrix = client.buildRoadMatrix(currentStops)
 
-                    // 2. TSP-oplossing op basis van echte wegdata of Haversine als fallback
+                    // 2. Solve TSP on road data; falls back to Haversine if API failed
                     val r = service.planRoute(currentStops, criteria, roadMatrix)
 
-                    // 3. Haal geometrie op voor de GESLOTEN route (inclusief terugrit naar start)
-                    //    Stuur locaties + eerste stop nog een keer zodat Mapbox de lus tekent
+                    // 3. Fetch geometry for the closed route (stops + return to first)
                     val closedStops = r.locations + r.locations.first()
                     val data = client.fetchRouteData(closedStops)
 
                     r to data
                 }
 
-                // Overschrijf metrics met Mapbox-data (meest accuraat voor gesloten route)
+                // Override distance/time with Mapbox totals — most accurate for the full loop
                 val finalRoute = if (routeData != null) {
                     solvedRoute.copy(
                         totalDistance    = routeData.distanceMeters / 1000.0,
                         estimatedTimeMin = routeData.durationSeconds / 60.0
-                        // totalCO2Grams blijft van de service (berekend per segment)
+                        // totalCO2Grams stays from the service (computed per segment)
                     )
                 } else {
                     solvedRoute
@@ -123,18 +116,15 @@ class RoutePlannerViewModel(
 
                 _route.value         = finalRoute
                 _routeGeometry.value = routeData?.geometry ?: emptyList()
-                // Toon geoptimaliseerde volgorde in de stoplijst
-                _stops.value         = finalRoute.locations
+                _stops.value         = finalRoute.locations  // reflect optimised order in UI
 
             } catch (e: Exception) {
-                _error.value = "Fout bij routeberekening: ${e.message}"
+                _error.value = "Route calculation failed: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
-    // ── Hulpmethoden ─────────────────────────────────────────────────────────
 
     fun clearAll() {
         _stops.value         = emptyList()

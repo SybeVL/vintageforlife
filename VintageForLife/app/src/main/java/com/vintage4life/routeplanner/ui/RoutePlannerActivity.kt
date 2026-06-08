@@ -16,12 +16,8 @@ import com.vintage4life.routeplanner.R
 import com.vintage4life.routeplanner.viewmodel.RoutePlannerViewModel
 
 /**
- * Entry point of the application.
- *
- * Responsibilities:
- *  - Request location permissions at startup
- *  - Initialise the [RoutePlannerViewModel] with the Mapbox access token
- *  - Hand off rendering to [RoutePlannerScreen]
+ * App entry point — requests location permissions, loads the Mapbox token,
+ * and hands off rendering to [RoutePlannerScreen].
  */
 class RoutePlannerActivity : ComponentActivity() {
 
@@ -34,7 +30,7 @@ class RoutePlannerActivity : ComponentActivity() {
             if (granted) loadScreen()
             else {
                 Toast.makeText(this, "Location permission required for map", Toast.LENGTH_LONG).show()
-                loadScreen() // Still load screen to show map, even if location isn't centered
+                loadScreen() // Load anyway so the map is still usable without location
             }
         }
 
@@ -49,24 +45,23 @@ class RoutePlannerActivity : ComponentActivity() {
     }
 
     private fun loadScreen() {
-        // Trace the token through multiple sources to ensure it's found
-        val tokenFromRes = try { getString(R.string.mapbox_access_token) } catch (e: Exception) { "" }
+        // Prefer the string resource; fall back to BuildConfig if the resource is a placeholder
+        val tokenFromRes         = try { getString(R.string.mapbox_access_token) } catch (e: Exception) { "" }
         val tokenFromBuildConfig = BuildConfig.MAPBOX_ACCESS_TOKEN
-        
-        // Final token selection logic
+
         val token = when {
-            tokenFromRes.isNotBlank() && !tokenFromRes.contains("MAPBOX_ACCESS_TOKEN") -> tokenFromRes
+            tokenFromRes.isNotBlank()         && !tokenFromRes.contains("MAPBOX_ACCESS_TOKEN")         -> tokenFromRes
             tokenFromBuildConfig.isNotBlank() && !tokenFromBuildConfig.contains("MAPBOX_ACCESS_TOKEN") -> tokenFromBuildConfig
             else -> ""
         }
 
         if (token.isBlank()) {
-            Log.e("RoutePlannerActivity", "FATAL: Mapbox token is missing in both Resources and BuildConfig!")
+            Log.e("RoutePlannerActivity", "FATAL: Mapbox token missing in both Resources and BuildConfig!")
             Log.d("RoutePlannerActivity", "Resource value: '$tokenFromRes'")
             Log.d("RoutePlannerActivity", "BuildConfig value: '$tokenFromBuildConfig'")
             Toast.makeText(this, "Mapbox token missing! Check local.properties and Rebuild.", Toast.LENGTH_LONG).show()
         } else {
-            Log.d("RoutePlannerActivity", "Mapbox token loaded successfully (length: ${token.length})")
+            Log.d("RoutePlannerActivity", "Mapbox token loaded (length: ${token.length})")
             MapboxOptions.accessToken = token
             viewModel.init(token)
         }

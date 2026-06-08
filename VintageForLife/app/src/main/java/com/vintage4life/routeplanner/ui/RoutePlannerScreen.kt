@@ -41,7 +41,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
 
-    // Startpositie: Nederland als fallback
+    // Default camera position: the Netherlands
     val viewportState = rememberMapViewportState {
         setCameraOptions {
             center(Point.fromLngLat(5.3878, 52.1561))
@@ -62,7 +62,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     var addressAnnotationManager by remember { mutableStateOf<PointAnnotationManager?>(null) }
     var positionListener         by remember { mutableStateOf<OnIndicatorPositionChangedListener?>(null) }
 
-    // Herteken pins/route bij elke state-wijziging
+    // Redraw pins/route whenever route, geometry or stops change
     LaunchedEffect(route, routeGeometry, stops) {
         val mv = mapViewRef ?: return@LaunchedEffect
         val am = stopsAnnotationManager ?: return@LaunchedEffect
@@ -74,6 +74,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
         }
     }
 
+    // Clean up the position listener when the composable leaves the composition
     DisposableEffect(Unit) {
         onDispose {
             positionListener?.let {
@@ -84,11 +85,12 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
 
     Column(Modifier.fillMaxSize()) {
 
-        // ── Kaart ────────────────────────────────────────────────────────────
+        // Map
         Box(Modifier.weight(1f)) {
             MapboxMap(
                 modifier         = Modifier.fillMaxSize(),
                 mapViewportState = viewportState,
+                // Tapping the map reverse-geocodes the point into the address field
                 onMapClickListener = { point ->
                     scope.launch {
                         val address = withContext(Dispatchers.IO) {
@@ -115,6 +117,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                     stopsAnnotationManager   = mapView.annotations.createPointAnnotationManager()
                     addressAnnotationManager = mapView.annotations.createPointAnnotationManager()
 
+                    // Show the current address label while no route is active
                     val newListener = OnIndicatorPositionChangedListener { point ->
                         if (route == null) {
                             scope.launch {
@@ -144,7 +147,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
             }
         }
 
-        // ── Onderpaneel ──────────────────────────────────────────────────────
+        // Bottom panel
         Surface(
             tonalElevation = 4.dp,
             modifier       = Modifier.navigationBarsPadding()
