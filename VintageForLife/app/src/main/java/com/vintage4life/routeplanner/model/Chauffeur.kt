@@ -1,12 +1,6 @@
 package com.vintage4life.routeplanner.model
 
-/**
- * Chauffeur-gebruiker.
- * Conform UML: heeft [licenseNumber] en [vehicleId].
- *
- * UML-toevoeging: [vehicleId] toegevoegd conform UML-diagram.
- * Geen functionele impact — veld is optioneel (default leeg).
- */
+// Driver user with a license number and optional vehicle ID.
 data class Chauffeur(
     override val id: String,
     override val name: String,

@@ -12,16 +12,8 @@ import com.vintage4life.routeplanner.model.OptimizationCriteria
 import com.vintage4life.routeplanner.model.Route
 
 /**
- * Kernservice die route-optimalisatie orkestreert.
- * Conform UML: [planRoute()], [setAlgorithm()]
- *
- * Met [RoadMatrix] (echte Mapbox-wegdata) optimaliseert de TSP op:
- *  - DISTANCE       → echte wegafstand (km)
- *  - TIME           → echte rijtijd (seconden)
- *  - SUSTAINABILITY → wegafstand × CO₂-factor per km
- *
- * Zonder [RoadMatrix] (fallback bij API-fout) worden Haversine/Time/CO2
- * calculators gebruikt — routes zijn dan minder precies.
+ * Orchestrates route optimisation using a TSP algorithm and real road data.
+ * Falls back to Haversine/Time/CO2 calculators when no [RoadMatrix] is available.
  */
 class RoutePlannerService(
     private var algorithm: TSPAlgorithm = TwoOptAlgorithm()
@@ -32,9 +24,9 @@ class RoutePlannerService(
         criteria: OptimizationCriteria,
         roadMatrix: RoadMatrix? = null
     ): Route {
-        require(stops.size >= 2) { "Minimaal 2 stops vereist voor routeberekening." }
+        require(stops.size >= 2) { "At least 2 stops required." }
 
-        // ── Kies optimalisatiecalculator ──────────────────────────────────────
+        // Pick the cost calculator based on criteria and available road data
         val optimizationCalculator = if (roadMatrix != null) {
             val costMatrix = when (criteria) {
                 OptimizationCriteria.DISTANCE -> roadMatrix.distancesKm
@@ -47,6 +39,7 @@ class RoutePlannerService(
             }
             PrecomputedCalculator(stops, costMatrix)
         } else {
+            // Fallback when Directions API is unavailable — less accurate
             when (criteria) {
                 OptimizationCriteria.DISTANCE       -> HaversineCalculator()
                 OptimizationCriteria.TIME           -> TimeCalculator()
@@ -54,18 +47,17 @@ class RoutePlannerService(
             }
         }
 
-        // ── Voer TSP uit ──────────────────────────────────────────────────────
+        // Solve the TSP to get the optimal route order
         val optimizedRoute = algorithm.solve(stops, optimizationCalculator)
 
-        // ── Bereken display-metrics per segment ───────────────────────────────
+        // Compute display metrics over all segments including the return leg (closed TSP)
         var totalDistKm   = 0.0
         var totalTimeMin  = 0.0
         var totalCO2Grams = 0.0
 
-        // Alle segmenten inclusief terugrit naar startpunt (gesloten TSP: A→B→C→D→A)
         val locs = optimizedRoute.locations
         val segments = (0 until locs.size - 1).map { locs[it] to locs[it + 1] } +
-                       listOf(locs.last() to locs.first())   // terugrit
+                       listOf(locs.last() to locs.first()) // Add return route for closed loop
 
         val haversine = HaversineCalculator()
         val timeCalc  = TimeCalculator()
@@ -97,11 +89,12 @@ class RoutePlannerService(
         )
     }
 
-    /** Conform UML: setAlgorithm(TSPAlgorithm) */
+    // Swaps the active TSP algorithm at runtime.
     fun setAlgorithm(newAlgorithm: TSPAlgorithm) {
         algorithm = newAlgorithm
     }
 
+    // CO2 emission factor (g/km) scaled by typical trip distance ranges.
     private fun co2GramsPerKm(distKm: Double): Double = when {
         distKm < 2.0 -> 220.0
         distKm < 8.0 -> 160.0

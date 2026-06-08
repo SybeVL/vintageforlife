@@ -1,18 +1,13 @@
 package com.vintage4life.routeplanner.model
 
 /**
- * Een berekende bezorgroute.
- *
- * Conform UML: bevat [locations], [totalDistance], [addLocation()].
- * De [totalDistance] property voorziet in de [getTotalDistance()] methode.
- * Extra velden [estimatedTimeMin] en [criteria] zijn niet in UML maar zijn
- * noodzakelijk voor de bestaande UI-functionaliteit (reistijdweergave en
- * optimalisatiecriterium-selectie). Gedocumenteerd als toevoeging.
- *
- * @param locations         Geordende lijst van te bezoeken stops
- * @param totalDistance     Totale routeafstand in kilometer
- * @param estimatedTimeMin  Geschatte reistijd in minuten (toevoeging tov UML)
- * @param criteria          Gebruikte optimalisatiecriterium (toevoeging tov UML)
+ * A calculated delivery route with ordered stops and metrics.
+ * [estimatedTimeMin] and [totalCO2Grams] are additions to the UML for UI display.
+ *  @param locations         Ordered list of stops to visit
+ *  @param totalDistance     Total route distance in kilometers
+ *  @param estimatedTimeMin  Estimated travel time in minutes (addition compared to UML)
+ *  @param criteria          Used optimization criteria (addition compared to UML)
+ *  @param criteria          Used optimization criteria (addition compared to UML)
  */
 data class Route(
     val locations: List<Location>,
@@ -21,14 +16,8 @@ data class Route(
     val totalCO2Grams: Double = 0.0,
     val criteria: OptimizationCriteria = OptimizationCriteria.DISTANCE
 ) {
-    /**
-     * Voegt een stop toe aan de route.
-     * Conform UML: addLocation(Location).
-     * Retourneert een nieuwe Route (Kotlin-idioom: immutable copy).
-     */
+    // Returns a new Route with [location] appended. Kotlin immutable copy pattern.
     fun addLocation(location: Location): Route =
         copy(locations = locations + location)
-
 }
-// Kotlin genereert automatisch getTotalDistance() als JVM-getter van [totalDistance].
-// Een expliciete methode zou een JVM-signatuurbotsing veroorzaken.
+// Kotlin auto-generates getTotalDistance() as a JVM getter — no explicit method needed.

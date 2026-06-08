@@ -2,10 +2,7 @@ package com.vintage4life.routeplanner.model
 
 import java.time.LocalDate
 
-/**
- * Koppelt een Route aan een Chauffeur met bezorgdatum en status.
- * Conform UML: heeft [complete()] en [cancel()] methoden.
- */
+// Links a Route to a Chauffeur with a delivery date and status.
 data class RouteAssignment(
     val id: String,
     val chauffeur: Chauffeur,
@@ -13,17 +10,9 @@ data class RouteAssignment(
     val deliveryDate: LocalDate = LocalDate.now(),
     val status: AssignmentStatus = AssignmentStatus.PENDING
 ) {
-    /**
-     * Markeert de toewijzing als voltooid.
-     * Conform UML: complete(): void
-     * Retourneert een nieuwe RouteAssignment (Kotlin-idioom: immutable copy).
-     */
+    // Marks the assignment as completed. Returns an immutable copy.
     fun complete(): RouteAssignment = copy(status = AssignmentStatus.COMPLETED)
 
-    /**
-     * Annuleert de toewijzing.
-     * Conform UML: cancel(): void
-     * Retourneert een nieuwe RouteAssignment (Kotlin-idioom: immutable copy).
-     */
+    // Cancels the assignment. Returns an immutable copy.
     fun cancel(): RouteAssignment = copy(status = AssignmentStatus.CANCELLED)
 }

@@ -36,7 +36,7 @@ class TwoOptAlgorithm(
         return initializer.buildRoute(bestIndices, matrix)
     }
 
-    /** Repeatedly applies 2-opt swaps until no further improvement is found. */
+    // Repeatedly applies 2-opt swaps until no further improvement is found.
     fun improve(initialRoute: List<Int>, matrix: DistanceMatrix): List<Int> {
         val route = initialRoute.toMutableList()
         val n     = route.size
@@ -61,7 +61,7 @@ class TwoOptAlgorithm(
         return route
     }
 
-    /** Total route cost including the return leg to the start node. */
+    // Total route cost including the return leg to the start node.
     private fun routeCost(indices: List<Int>, matrix: DistanceMatrix): Double {
         val segmentCost = (0 until indices.size - 1).sumOf { i ->
             matrix.distance(indices[i], indices[i + 1])
@@ -69,7 +69,7 @@ class TwoOptAlgorithm(
         return segmentCost + matrix.distance(indices.last(), indices.first())
     }
 
-    /** Returns the cost delta of a 2-opt swap; negative means an improvement. */
+    // Returns the cost delta of a 2-opt swap; negative means an improvement.
     private fun swapGain(route: List<Int>, i: Int, j: Int, matrix: DistanceMatrix): Double {
         val n = route.size
         val a = route[i];           val b = route[i + 1]
@@ -79,7 +79,7 @@ class TwoOptAlgorithm(
                (matrix.distance(a, b) + matrix.distance(c, d))
     }
 
-    /** Reverses the segment [from to] of the route in-place. */
+    // Reverses the segment [from to] of the route in-place.
     private fun reverse(route: MutableList<Int>, from: Int, to: Int) {
         var l = from; var r = to
         while (l < r) {

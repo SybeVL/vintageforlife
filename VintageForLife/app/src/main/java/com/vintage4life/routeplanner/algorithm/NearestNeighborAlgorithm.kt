@@ -5,7 +5,7 @@ import com.vintage4life.routeplanner.distance.DistanceMatrix
 import com.vintage4life.routeplanner.model.Location
 import com.vintage4life.routeplanner.model.Route
 
-/** Greedy Nearest Neighbor heuristic — O(n²). Produces the initial route for 2-opt. */
+// Greedy Nearest Neighbor heuristic — O(n²). Produces the initial route for 2-opt.
 class NearestNeighborAlgorithm : TSPAlgorithm {
 
     override fun solve(locations: List<Location>, calculator: DistanceCalculator): Route {
@@ -14,7 +14,7 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
         return buildRoute(indices, matrix)
     }
 
-    /** Builds a greedy index order starting from [startFrom]. Used by multi-start 2-opt. */
+    // Builds a greedy index order starting from [startFrom]. Used by multi-start 2-opt.
     fun solveIndices(matrix: DistanceMatrix, startFrom: Int = 0): List<Int> {
         val n       = matrix.size()
         val visited = BooleanArray(n) { false }
@@ -48,7 +48,7 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
         return route
     }
 
-    /** Converts indices to a Route including the return leg (closed TSP: A→…→A). */
+    // Converts indices to a Route including the return leg (closed TSP: A→…→A).
     fun buildRoute(indices: List<Int>, matrix: DistanceMatrix): Route {
         val orderedLocations = indices.map { matrix.locationAt(it) }
         val segmentCost = (0 until indices.size - 1).sumOf { i ->
