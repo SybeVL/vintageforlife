@@ -9,7 +9,7 @@ class NearestNeighborAlgorithmTest {
 
     /**
      * Mock calculator that returns a fixed distance based on the 'name' property
-     * treated as a coordinate on a 1D line.    
+     * treated as a coordinate on a 1D line.
      */
     private class MockDistanceCalculator : DistanceCalculator {
         override fun calculate(from: Location, to: Location): Double {
