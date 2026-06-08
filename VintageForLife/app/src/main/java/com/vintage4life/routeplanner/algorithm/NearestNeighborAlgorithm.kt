@@ -17,6 +17,8 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
     // Builds a greedy index order starting from [startFrom]. Used by multi-start 2-opt.
     fun solveIndices(matrix: DistanceMatrix, startFrom: Int = 0): List<Int> {
         val n       = matrix.size()
+        if (n == 0) return emptyList()
+
         val visited = BooleanArray(n) { false }
         val route   = mutableListOf<Int>()
 
@@ -50,6 +52,8 @@ class NearestNeighborAlgorithm : TSPAlgorithm {
 
     // Converts indices to a Route including the return leg (closed TSP: A→…→A).
     fun buildRoute(indices: List<Int>, matrix: DistanceMatrix): Route {
+        if (indices.isEmpty()) return Route(emptyList(), 0.0)
+
         val orderedLocations = indices.map { matrix.locationAt(it) }
         val segmentCost = (0 until indices.size - 1).sumOf { i ->
             matrix.distance(indices[i], indices[i + 1])
