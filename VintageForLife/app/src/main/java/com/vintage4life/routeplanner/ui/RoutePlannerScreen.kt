@@ -37,9 +37,13 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     val context = LocalContext.current
 
     val stops         by viewModel.stops.collectAsState()
+    val optimisedStops by viewModel.optimisedStops.collectAsState()
     val route         by viewModel.route.collectAsState()
     val routeGeometry by viewModel.routeGeometry.collectAsState()
     val error         by viewModel.error.collectAsState()
+
+    // Show the optimised order after calculation, original order while editing
+    val displayStops = if (route != null && optimisedStops.isNotEmpty()) optimisedStops else stops
 
     // Default camera position: the Netherlands
     val viewportState = rememberMapViewportState {
@@ -63,14 +67,14 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
     var positionListener         by remember { mutableStateOf<OnIndicatorPositionChangedListener?>(null) }
 
     // Redraw pins/route whenever route, geometry or stops change
-    LaunchedEffect(route, routeGeometry, stops) {
+    LaunchedEffect(route, routeGeometry, displayStops) {
         val mv = mapViewRef ?: return@LaunchedEffect
         val am = stopsAnnotationManager ?: return@LaunchedEffect
         if (route != null) {
             MapAnnotations.drawRoute(mv, route!!.locations, routeGeometry, am)
         } else {
             MapAnnotations.clearRoute(mv, am)
-            MapAnnotations.showPins(stops, am)
+            MapAnnotations.showPins(displayStops, am)
         }
     }
 
@@ -218,9 +222,9 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                         Text("Stop toevoegen")
                 }
 
-                if (stops.isNotEmpty()) {
+                if (displayStops.isNotEmpty()) {
                     LazyColumn(Modifier.heightIn(max = 110.dp)) {
-                        itemsIndexed(stops) { index, stop ->
+                        itemsIndexed(displayStops) { index, stop ->
                             Row(
                                 Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -266,7 +270,7 @@ fun RoutePlannerScreen(viewModel: RoutePlannerViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick  = { viewModel.planRoute(selectedCriteria) },
-                        enabled  = stops.size >= 2 && !isLoading,
+                        enabled  = stops.size >= 2 && !isLoading,  // use original stops for count
                         modifier = Modifier.weight(1f)
                     ) {
                         if (isLoading)

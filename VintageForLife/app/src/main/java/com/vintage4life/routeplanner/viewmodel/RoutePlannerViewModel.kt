@@ -19,8 +19,13 @@ class RoutePlannerViewModel(
     private val service: RoutePlannerService = RoutePlannerService()
 ) : ViewModel() {
 
+    // The user's original stop list — never reordered, always used as TSP input.
     private val _stops         = MutableStateFlow<List<Location>>(emptyList())
     val stops: StateFlow<List<Location>> = _stops.asStateFlow()
+
+    // The optimised stop order shown in the UI after a route is calculated.
+    private val _optimisedStops = MutableStateFlow<List<Location>>(emptyList())
+    val optimisedStops: StateFlow<List<Location>> = _optimisedStops.asStateFlow()
 
     private val _route         = MutableStateFlow<Route?>(null)
     val route: StateFlow<Route?> = _route.asStateFlow()
@@ -47,6 +52,7 @@ class RoutePlannerViewModel(
             return
         }
         _stops.value         = _stops.value + location
+        _optimisedStops.value = emptyList()
         _route.value         = null
         _routeGeometry.value = emptyList()
         _error.value         = null
@@ -54,12 +60,14 @@ class RoutePlannerViewModel(
 
     fun removeStop(location: Location) {
         _stops.value         = _stops.value.filter { it.id != location.id }
+        _optimisedStops.value = emptyList()
         _route.value         = null
         _routeGeometry.value = emptyList()
     }
 
     fun removeStopAt(index: Int) {
         _stops.value         = _stops.value.toMutableList().also { it.removeAt(index) }
+        _optimisedStops.value = emptyList()
         _route.value         = null
         _routeGeometry.value = emptyList()
     }
@@ -72,6 +80,7 @@ class RoutePlannerViewModel(
     }
 
     fun planRoute(criteria: OptimizationCriteria) {
+        // Always use the original user-added stops — never the previously optimised order.
         val currentStops = _stops.value
         if (currentStops.size < 2) {
             _error.value = "Add at least 2 stops to calculate a route."
@@ -103,20 +112,12 @@ class RoutePlannerViewModel(
                     r to data
                 }
 
-                // Override distance/time with Mapbox totals — most accurate for the full loop
-                val finalRoute = if (routeData != null) {
-                    solvedRoute.copy(
-                        totalDistance    = routeData.distanceMeters / 1000.0,
-                        estimatedTimeMin = routeData.durationSeconds / 60.0
-                        // totalCO2Grams stays from the service (computed per segment)
-                    )
-                } else {
-                    solvedRoute
-                }
-
-                _route.value         = finalRoute
-                _routeGeometry.value = routeData?.geometry ?: emptyList()
-                _stops.value         = finalRoute.locations  // reflect optimised order in UI
+                // Use service metrics directly — they are computed from real road data and
+                // guarantee that DISTANCE ≤ km and TIME ≤ minutes across criteria.
+                // routeData is only used for map geometry (the drawn route line).
+                _route.value          = solvedRoute
+                _routeGeometry.value  = routeData?.geometry ?: emptyList()
+                _optimisedStops.value = solvedRoute.locations  // show optimised order in UI
 
             } catch (e: Exception) {
                 _error.value = "Route calculation failed: ${e.message}"
@@ -128,6 +129,7 @@ class RoutePlannerViewModel(
 
     fun clearAll() {
         _stops.value         = emptyList()
+        _optimisedStops.value = emptyList()
         _route.value         = null
         _routeGeometry.value = emptyList()
         _error.value         = null
