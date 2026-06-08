@@ -2,21 +2,12 @@ package com.vintage4life.routeplanner.distance
 
 import com.vintage4life.routeplanner.model.Location
 
-/**
- * Implementeert [DistanceCalculator] met vooraf berekende waarden uit [RoadMatrix].
- *
- * Hierdoor kan de bestaande [DistanceMatrix]-constructor en de TSP-algoritmen
- * ongewijzigd gebruik maken van echte Mapbox-wegdata, zonder de interface te breken.
- *
- * @param locations  Geordende lijst van stops — zelfde volgorde als de matrix
- * @param values     N×N matrix met kosten (km, seconden, CO₂, enz.)
- */
+// implements DistanceCalculator with RoadMatrix values. DistanceCalculator-interface does not have to be broken like this.
 class PrecomputedCalculator(
     locations: List<Location>,
     private val values: Array<DoubleArray>
 ) : DistanceCalculator {
 
-    // O(1) index-opzoek via map
     private val indexMap: Map<String, Int> = locations
         .mapIndexed { i, loc -> loc.id to i }
         .toMap()
